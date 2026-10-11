@@ -70,7 +70,7 @@ function notify(text, error = false) {
 }
 function shell(content, active = "profile") {
   const logged = user || demo;
-  root.innerHTML = `<div class="site"><header><a class="brand" href="${logged ? "#profile" : "#welcome"}">[ retrobook ]</a><div class="header-right"><span class="edition">ÉDITION 2005</span><nav aria-label="Navigation principale">${logged ? `<a href="#profile">mon profil</a><a href="#friends">mes amis</a><a href="#messages">messages</a><button class="text-button" data-action="refresh">actualiser</button><button class="text-button" data-action="logout">${demo ? "quitter l’aperçu" : "déconnexion"}</button>` : `<a href="#welcome">accueil</a><a href="#login">connexion</a><a href="#signup">inscription</a><a href="#about">à propos</a>`}</nav></div></header><div class="body-layout"><aside>${logged ? `<form id="search-form" class="search"><label for="q">Rechercher un membre</label><div><input id="q" name="q" maxlength="80" placeholder="Nom, prénom…"><button aria-label="Rechercher">go</button></div></form><nav class="sidebar" aria-label="Menu"><a class="${active === "profile" ? "selected" : ""}" href="#profile">Mon profil <span>[ moi ]</span></a><a class="${active === "edit" ? "selected" : ""}" href="#edit">Modifier mon profil</a><a class="${active === "friends" ? "selected" : ""}" href="#friends">Mes amis</a><a class="${active === "directory" ? "selected" : ""}" href="#directory">L’annuaire</a><a class="${active === "messages" ? "selected" : ""}" href="#messages">Ma messagerie</a></nav><div class="side-note"><b>Un peu plus proches.</b><p>Retrouve tes amis.<br>Fais de nouvelles rencontres.<br>Garde le contact.</p></div>` : `<div class="side-login"><h2>Connexion</h2>${loginForm("compact")}</div><nav class="sidebar"><a href="#signup">Créer un compte</a><a href="#forgot">Mot de passe oublié ?</a><a href="#demo">Visiter l’aperçu</a></nav>`}<div class="year-note"><span>2005</span>Le web entre amis.</div></aside><main>${demo ? '<div class="demo-notice">APERÇU • Profils fictifs, aucune donnée partagée. <a href="#welcome" data-action="exit-demo">Créer mon vrai compte →</a></div>' : ""}<div id="notice" role="status" hidden></div>${content}</main></div><footer><div><a href="#about">à propos</a> · <a href="#privacy">confidentialité</a> · <a href="#help">aide</a></div><p>Retrobook — Reconstitution indépendante inspirée de 2005. Non affiliée à Facebook ou Meta.</p></footer></div>`;
+  root.innerHTML = `<div class="site"><header><a class="brand" href="${logged ? "#profile" : "#welcome"}">[ retrobook ]</a><div class="header-right"><span class="edition">${user && !demo ? `CONNECTÉ · ${esc(user.user_metadata?.name || "Mon compte")}` : "ÉDITION 2005"}</span><nav aria-label="Navigation principale">${logged ? `<a href="#profile">mon profil</a><a href="#friends">mes amis</a><a href="#messages">messages</a><button class="text-button" data-action="refresh">actualiser</button><button class="text-button" data-action="logout">${demo ? "quitter l’aperçu" : "déconnexion"}</button>` : `<a href="#welcome">accueil</a><a href="#login">connexion</a><a href="#signup">inscription</a><a href="#about">à propos</a>`}</nav></div></header><div class="body-layout"><aside>${logged ? `<form id="search-form" class="search"><label for="q">Rechercher un membre</label><div><input id="q" name="q" maxlength="80" placeholder="Nom, prénom…"><button aria-label="Rechercher">go</button></div></form><nav class="sidebar" aria-label="Menu"><a class="${active === "profile" ? "selected" : ""}" href="#profile">Mon profil <span>[ moi ]</span></a><a class="${active === "edit" ? "selected" : ""}" href="#edit">Modifier mon profil</a><a class="${active === "friends" ? "selected" : ""}" href="#friends">Mes amis</a><a class="${active === "directory" ? "selected" : ""}" href="#directory">L’annuaire</a><a class="${active === "messages" ? "selected" : ""}" href="#messages">Ma messagerie</a></nav><div class="side-note"><b>Un peu plus proches.</b><p>Retrouve tes amis.<br>Fais de nouvelles rencontres.<br>Garde le contact.</p></div>` : `<div class="side-login"><h2>Connexion</h2>${loginForm("compact")}</div><nav class="sidebar"><a href="#signup">Créer un compte</a><a href="#forgot">Mot de passe oublié ?</a><a href="#demo">Visiter l’aperçu</a></nav>`}<div class="year-note"><span>2005</span>Le web entre amis.</div></aside><main>${demo ? '<div class="demo-notice">APERÇU • Profils fictifs, aucune donnée partagée. <a href="#welcome" data-action="exit-demo">Créer mon vrai compte →</a></div>' : ""}<div id="notice" role="status" hidden></div>${content}</main></div><footer><div><a href="#about">à propos</a> · <a href="#privacy">confidentialité</a> · <a href="#help">aide</a></div><p>Retrobook — Reconstitution indépendante inspirée de 2005. Non affiliée à Facebook ou Meta.</p></footer></div>`;
 }
 function loginForm(cls = "") {
   return `<form data-auth="login" class="${cls}"><label>E-mail<input required name="email" type="email" autocomplete="email" maxlength="254"></label><label>Mot de passe<input required name="password" type="password" autocomplete="current-password"></label><button ${!configured ? "disabled" : ""}>Se connecter</button>${!configured ? '<p class="muted">Connexion disponible après configuration du serveur.</p>' : ""}</form>`;
@@ -101,14 +101,12 @@ async function getProfile(id) {
 }
 async function relations(id) {
   return demo
-    ? demoPeople
-        .slice(1)
-        .map((p, i) => ({
-          id: `r${i}`,
-          sender: "demo",
-          recipient: p.id,
-          status: "accepted",
-        }))
+    ? demoPeople.slice(1).map((p, i) => ({
+        id: `r${i}`,
+        sender: "demo",
+        recipient: p.id,
+        status: "accepted",
+      }))
     : result(
         db
           .from("friendships")
@@ -386,6 +384,10 @@ async function render() {
       location.hash = "#reset";
       return;
     }
+    if (user && !demo && ["signup", "login"].includes(page)) {
+      location.hash = "#profile";
+      return;
+    }
     if (["signup", "forgot", "reset", "login"].includes(page)) {
       authPage(page);
       return;
@@ -453,18 +455,20 @@ root.addEventListener("submit", async (e) => {
   try {
     const kind = f.dataset.auth;
     if (kind === "login") {
-      await result(
+      const data = await result(
         db.auth.signInWithPassword({
-          email: d.get("email"),
+          email: d.get("email").trim(),
           password: d.get("password"),
         }),
       );
+      user = data.session?.user || data.user;
+      demo = false;
       location.hash = "#profile";
       await render();
     } else if (kind === "signup") {
       const data = await result(
         db.auth.signUp({
-          email: d.get("email"),
+          email: d.get("email").trim(),
           password: d.get("password"),
           options: {
             data: { name: d.get("name").trim() },
@@ -473,7 +477,8 @@ root.addEventListener("submit", async (e) => {
         }),
       );
       if (data.session) {
-        user = data.user;
+        user = data.session.user;
+        demo = false;
         location.hash = "#profile";
         await render();
       } else {
@@ -512,24 +517,20 @@ root.addEventListener("submit", async (e) => {
       notify("Profil mis à jour.");
     } else if (f.id === "wall-form") {
       await result(
-        db
-          .from("posts")
-          .insert({
-            author: user.id,
-            wall_owner: f.dataset.id,
-            body: d.get("body").trim(),
-          }),
+        db.from("posts").insert({
+          author: user.id,
+          wall_owner: f.dataset.id,
+          body: d.get("body").trim(),
+        }),
       );
       await render();
     } else if (f.id === "message-form") {
       await result(
-        db
-          .from("messages")
-          .insert({
-            sender: user.id,
-            recipient: f.dataset.id,
-            body: d.get("body").trim(),
-          }),
+        db.from("messages").insert({
+          sender: user.id,
+          recipient: f.dataset.id,
+          body: d.get("body").trim(),
+        }),
       );
       await render();
       notify("Message envoyé.");
@@ -604,12 +605,21 @@ root.addEventListener("click", async (e) => {
 window.addEventListener("hashchange", render);
 if (db) {
   db.auth.onAuthStateChange((event, session) => {
+    const previousUserId = user?.id;
     user = session?.user || null;
+    if (event === "SIGNED_OUT") recovery = false;
     if (event === "PASSWORD_RECOVERY") {
       recovery = true;
       location.hash = "#reset";
     }
-    setTimeout(render, 0);
+    // A token refresh or tab refocus must not erase a message being typed.
+    if (
+      previousUserId !== user?.id ||
+      event === "PASSWORD_RECOVERY" ||
+      event === "USER_UPDATED"
+    ) {
+      setTimeout(render, 0);
+    }
   });
   const { data, error } = await db.auth.getSession();
   user = data.session?.user || null;
